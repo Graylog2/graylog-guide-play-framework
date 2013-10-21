@@ -41,8 +41,7 @@ class AccessLog extends Filter {
   def logRequest(startTime: Long, request: RequestHeader, response: SimpleResult): SimpleResult = {
     val endTime: Long = System.currentTimeMillis()
 
-    (response.body |>>> Iteratee.consume[Array[Byte]]()) foreach { bytes =>
-      val responseLength: Int = bytes.length
+    (response.body |>>> Iteratee.fold(0)(_ + _.size)) foreach { responseLength =>
 
       // TODO add apache log format parser to have the fields configurable
       val gelfString = JsObject(List(
