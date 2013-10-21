@@ -41,30 +41,29 @@ class AccessLog extends Filter {
   def logRequest(startTime: Long, request: RequestHeader, response: SimpleResult): SimpleResult = {
     val endTime: Long = System.currentTimeMillis()
 
-    // TODO this can't be right.
-    val bytes: Array[Byte] = Await.result(response.body |>>> Iteratee.consume[Array[Byte]](), Duration.Inf)
-    val responseLength: Int = bytes.length
+    (response.body |>>> Iteratee.fold(0)(_ + _.size)) foreach { responseLength =>
 
-    // TODO add apache log format parser to have the fields configurable
-    val gelfString = JsObject(List(
-      // standard gelf fields
-      "host" -> JsString(plugin.getLocalHostName),
-      "short_message" -> JsString(request.method + " " + request.uri),
-      "timestamp" -> JsNumber(startTime / 1000D),
-      // request related fields
-      "method" -> JsString(request.method),
-      "url" -> JsString(request.uri),
-      "version" -> JsString(request.version),
-      "remote_host" -> JsString(request.remoteAddress),
-      "referer" -> JsString(request.headers.get("Referer").getOrElse("")),
-      "user_agent" -> JsString(request.headers.get("User-Agent").getOrElse("")),
-      // response related fields
-      "status" -> JsNumber(response.header.status),
-      "response_bytes" -> JsNumber(responseLength),
-      "duration" -> JsNumber(endTime - startTime)
-    )).toString()
+      // TODO add apache log format parser to have the fields configurable
+      val gelfString = JsObject(List(
+        // standard gelf fields
+        "host" -> JsString(plugin.getLocalHostName),
+        "short_message" -> JsString(request.method + " " + request.uri),
+        "timestamp" -> JsNumber(startTime / 1000D),
+        // request related fields
+        "method" -> JsString(request.method),
+        "url" -> JsString(request.uri),
+        "version" -> JsString(request.version),
+        "remote_host" -> JsString(request.remoteAddress),
+        "referer" -> JsString(request.headers.get("Referer").getOrElse("")),
+        "user_agent" -> JsString(request.headers.get("User-Agent").getOrElse("")),
+        // response related fields
+        "status" -> JsNumber(response.header.status),
+        "response_bytes" -> JsNumber(responseLength),
+        "duration" -> JsNumber(endTime - startTime)
+      )).toString()
 
-    logger.offer(gelfString)
+      logger.offer(gelfString)
+    }
 
     response
   }
