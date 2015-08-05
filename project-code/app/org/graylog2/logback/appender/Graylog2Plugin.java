@@ -35,6 +35,7 @@ import java.net.UnknownHostException;
 @SuppressWarnings("unused")
 public class Graylog2Plugin extends Plugin {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(Graylog2Plugin.class);
+    private final boolean enabled;
     private final Long connectTimeout;
     private final Boolean isTcpNoDelay;
     private final Integer sendBufferSize;
@@ -54,7 +55,8 @@ public class Graylog2Plugin extends Plugin {
     public Graylog2Plugin(Application app) {
         final Configuration config = app.configuration();
 
-        accessLogEnabled = config.getBoolean("graylog2.appender.send-access-log", false);
+        enabled = config.getBoolean("graylog2.appender.enabled", true);
+        accessLogEnabled = enabled ? config.getBoolean("graylog2.appender.send-access-log", false) : false;
         queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
         reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
         connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
@@ -67,6 +69,13 @@ public class Graylog2Plugin extends Plugin {
             log.error("Unable to resolve canonical localhost name. " +
                     "Please set it manually via graylog2.appender.sourcehost or fix your lookup service, falling back to {}", canonicalHostName);
         }
+
+        if (!enabled) {
+            transport = null;
+            rootLogger = null;
+            return;
+        }
+
         // TODO make this a list and dynamically accessible from the application
         final String hostString = config.getString("graylog2.appender.host", "127.0.0.1:12201");
         final String protocol = config.getString("graylog2.appender.protocol", "tcp");
@@ -94,14 +103,23 @@ public class Graylog2Plugin extends Plugin {
 
     @Override
     public void onStart() {
-        gelfAppender.start();
-        rootLogger.addAppender(gelfAppender);
+        if (enabled) {
+          gelfAppender.start();
+          rootLogger.addAppender(gelfAppender);
+        }
     }
 
     @Override
     public void onStop() {
-        rootLogger.detachAppender(gelfAppender);
-        transport.stop();
+        if (enabled) {
+          rootLogger.detachAppender(gelfAppender);
+          transport.stop();
+        }
+    }
+
+    @Override
+    public boolean enabled() {
+      return enabled;
     }
 
     public String getLocalHostName() {
