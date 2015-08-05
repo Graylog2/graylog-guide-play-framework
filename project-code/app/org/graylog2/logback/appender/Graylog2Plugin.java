@@ -56,7 +56,7 @@ public class Graylog2Plugin extends Plugin {
         final Configuration config = app.configuration();
 
         enabled = config.getBoolean("graylog2.appender.enabled", true);
-        accessLogEnabled = config.getBoolean("graylog2.appender.send-access-log", false);
+        accessLogEnabled = enabled ? config.getBoolean("graylog2.appender.send-access-log", false) : false;
         queueCapacity = config.getInt("graylog2.appender.queue-size", 512);
         reconnectInterval = config.getMilliseconds("graylog2.appender.reconnect-interval", 500L);
         connectTimeout = config.getMilliseconds("graylog2.appender.connect-timeout", 1000L);
